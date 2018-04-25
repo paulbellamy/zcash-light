@@ -9,11 +9,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/OpenBazaar/zcash-light/testdata"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/conformal/btcec"
+	"github.com/paulbellamy/zcash-light/testdata"
 )
 
 var (
