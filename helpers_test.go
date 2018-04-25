@@ -382,7 +382,7 @@ func (f *FakeWatchedScripts) Delete(scriptPubKey []byte) error {
 
 type FakeInsightClient struct {
 	getInfo           func() (*client.Info, error)
-	getLatestBlock    func() (*client.Block, error)
+	getBestBlock      func() (*client.Block, error)
 	getBlocksBefore   func(time.Time, int) (*client.BlockList, error)
 	getTransactions   func(addrs []btcutil.Address) ([]client.Transaction, error)
 	getRawTransaction func(txid string) ([]byte, error)
@@ -403,11 +403,11 @@ func (f *FakeInsightClient) GetInfo() (*client.Info, error) {
 	return f.getInfo()
 }
 
-func (f *FakeInsightClient) GetLatestBlock() (*client.Block, error) {
-	if f.getLatestBlock == nil {
+func (f *FakeInsightClient) GetBestBlock() (*client.Block, error) {
+	if f.getBestBlock == nil {
 		panic("not implemented")
 	}
-	return f.getLatestBlock()
+	return f.getBestBlock()
 }
 
 func (f *FakeInsightClient) GetBlocksBefore(t time.Time, limit int) (*client.BlockList, error) {

@@ -408,7 +408,7 @@ func TestWalletTransactionsInitialLoad(t *testing.T) {
 	txnChan := make(chan client.Transaction)
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 		return &FakeInsightClient{
-			getLatestBlock: func() (*client.Block, error) { return nil, nil },
+			getBestBlock: func() (*client.Block, error) { return nil, nil },
 			getTransactions: func(addrs []btc.Address) ([]client.Transaction, error) {
 				// TODO: Put some txns here
 				return []client.Transaction{{Txid: "a"}}, nil
@@ -445,7 +445,7 @@ func TestWalletChainTip(t *testing.T) {
 	expectedHash, _ := chainhash.NewHashFromStr("a")
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 		return &FakeInsightClient{
-			getLatestBlock: func() (*client.Block, error) {
+			getBestBlock: func() (*client.Block, error) {
 				return &client.Block{Hash: expectedHash.String(), Height: int(expectedHeight)}, nil
 			},
 			getTransactions: func(addrs []btc.Address) ([]client.Transaction, error) {
@@ -515,7 +515,7 @@ func TestWalletGetConfirmations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 				return &FakeInsightClient{
-					getLatestBlock:    func() (*client.Block, error) { return tc.block, nil },
+					getBestBlock:      func() (*client.Block, error) { return tc.block, nil },
 					getTransactions:   func(addrs []btc.Address) ([]client.Transaction, error) { return tc.txns, nil },
 					getRawTransaction: func(txid string) ([]byte, error) { return nil, nil },
 				}, nil
@@ -558,7 +558,7 @@ func TestWalletSpend(t *testing.T) {
 	sentTxHash, _ := chainhash.NewHashFromStr("b")
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 		return &FakeInsightClient{
-			getLatestBlock: func() (*client.Block, error) {
+			getBestBlock: func() (*client.Block, error) {
 				return &client.Block{Hash: blockHash.String(), Height: 1234}, nil
 			},
 			getTransactions:   func(addrs []btc.Address) ([]client.Transaction, error) { return nil, nil },
@@ -739,7 +739,7 @@ func TestWalletSpendRejectsInsufficientFunds(t *testing.T) {
 	expectedHash, _ := chainhash.NewHashFromStr("a")
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 		return &FakeInsightClient{
-			getLatestBlock: func() (*client.Block, error) {
+			getBestBlock: func() (*client.Block, error) {
 				return &client.Block{Hash: expectedHash.String(), Height: int(expectedHeight)}, nil
 			},
 			getTransactions: func(addrs []btc.Address) ([]client.Transaction, error) { return nil, nil },

@@ -69,7 +69,7 @@ var (
 
 type InsightClient interface {
 	GetInfo() (*client.Info, error)
-	GetLatestBlock() (*client.Block, error)
+	GetBestBlock() (*client.Block, error)
 	GetBlocksBefore(time.Time, int) (*client.BlockList, error)
 	GetTransactions(addrs []btc.Address) ([]client.Transaction, error)
 	GetRawTransaction(txid string) ([]byte, error)
@@ -344,7 +344,7 @@ func (w *Wallet) GetTransaction(txid chainhash.Hash) (wallet.Txn, error) {
 // so dependent on the insight api
 func (w *Wallet) ChainTip() (uint32, chainhash.Hash) {
 	<-w.initChan
-	block, err := w.insight.GetLatestBlock()
+	block, err := w.insight.GetBestBlock()
 	if err != nil {
 		log.Errorf("error fetching latest block: %v", err)
 		return 0, chainhash.Hash{}
