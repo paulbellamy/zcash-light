@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/OpenBazaar/spvwallet"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	btc "github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcwallet/wallet/txauthor"
 	"github.com/btcsuite/btcwallet/wallet/txrules"
-	"github.com/conformal/btcec"
 )
 
 // Special case nIn for signing JoinSplits.
