@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/OpenBazaar/zcash-light.svg?branch=master)](https://travis-ci.org/OpenBazaar/zcash-light)
-[![Coverage Status](https://coveralls.io/repos/github/OpenBazaar/zcash-light/badge.svg?branch=master)](https://coveralls.io/github/OpenBazaar/zcash-light?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/OpenBazaar/zcash-light)](https://goreportcard.com/report/github.com/OpenBazaar/zcash-light)
+[![Build Status](https://travis-ci.org/paulbellamy/zcash-light.svg?branch=master)](https://travis-ci.org/paulbellamy/zcash-light)
+[![Coverage Status](https://coveralls.io/repos/github/paulbellamy/zcash-light/badge.svg?branch=master)](https://coveralls.io/github/paulbellamy/zcash-light?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/paulbellamy/zcash-light)](https://goreportcard.com/report/github.com/paulbellamy/zcash-light)
 
 # zcash-light
 
