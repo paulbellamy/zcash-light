@@ -32,6 +32,8 @@ var (
 )
 
 const (
+	MaxBlockBaseSize = 2000000
+
 	NumJoinSplitInputs  = 2
 	NumJoinSplitOutputs = 2
 
@@ -367,8 +369,8 @@ func (tx *Transaction) Validate() error {
 	}
 	serializedTxSize := len(serialized)
 	// TODO: Figure out the max zcash block base size
-	if serializedTxSize > blockchain.MaxBlockBaseSize {
-		return fmt.Errorf("serialized transaction is too big - got %d, max %d", serializedTxSize, blockchain.MaxBlockBaseSize)
+	if serializedTxSize > MaxBlockBaseSize {
+		return fmt.Errorf("serialized transaction is too big - got %d, max %d", serializedTxSize, MaxBlockBaseSize)
 	}
 
 	// Ensure the transaction amounts are in range.  Each transaction
