@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	"github.com/btcsuite/btcd/blockchain"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
@@ -338,7 +339,7 @@ func (t *Transaction) writeJoinSplits(w io.Writer) error {
 	return nil
 }
 
-func (tx *Transaction) Validate() error {
+func (tx *Transaction) Validate(params *chaincfg.Params) error {
 
 	if !tx.IsOverwinter && tx.Version < SproutMinCurrentVersion {
 		return ErrTxVersionTooLow
@@ -469,9 +470,11 @@ func (tx *Transaction) Validate() error {
 			return fmt.Errorf("coinbase transaction script length of %d is out of range (min: %d, max: %d)", slen, blockchain.MinCoinbaseScriptLen, blockchain.MaxCoinbaseScriptLen)
 		}
 
-		// Coinbase txns must have no outputs
-		if len(tx.Outputs) > 0 {
-			return ErrCoinBaseTxHasOutputs
+		// Coinbase txns must have only founders' reward outputs
+		for _, output := range tx.Outputs {
+			if !output.IsFoundersReward(params) {
+				return ErrCoinBaseTxHasOutputs
+			}
 		}
 	} else {
 		// Previous transaction outputs referenced by the inputs to this
@@ -658,6 +661,17 @@ func (o *Output) SerializeSize() int {
 
 func serializeScriptSize(script []byte) int {
 	return wire.VarIntSerializeSize(uint64(len(script) + len(script)))
+}
+
+func (o *Output) IsFoundersReward(params *chaincfg.Params) bool {
+	// If we knew the block height, and chain params, we could check exactly
+	// which founders reward address and the amount it should be.
+	for _, template := range founderRewardScripts[params.Name] {
+		if string(o.ScriptPubKey) == string(template) {
+			return true
+		}
+	}
+	return false
 }
 
 type JoinSplit struct {

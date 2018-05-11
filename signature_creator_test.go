@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -324,13 +325,13 @@ func validateTestData(tx Transaction) error {
 	if tx.IsOverwinter {
 		if tx.Version == 3 && tx.ExpiryHeight > TxExpiryHeightThreshold {
 			// Transaction must be invalid
-			if err := tx.Validate(); err == nil {
+			if err := tx.Validate(&chaincfg.MainNetParams); err == nil {
 				return fmt.Errorf("Expected invalid overwinter transaction due to expiry height")
 			}
 		} else {
-			return tx.Validate()
+			return tx.Validate(&chaincfg.MainNetParams)
 		}
-	} else if err := tx.Validate(); err != nil {
+	} else if err := tx.Validate(&chaincfg.MainNetParams); err != nil {
 		return fmt.Errorf("Expected valid txn, got: %v", err)
 	}
 	return nil

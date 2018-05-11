@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -213,7 +214,7 @@ func TestTransactionValidate(t *testing.T) {
 		// TODO: Other rules inherited from Bitcoin
 	} {
 		t.Run(tc.err, func(t *testing.T) {
-			err := tc.txn.Validate()
+			err := tc.txn.Validate(&chaincfg.MainNetParams)
 			if err == nil {
 				t.Errorf("Did not reject invalid txn")
 			} else if err.Error() != tc.err {

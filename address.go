@@ -37,20 +37,17 @@ var (
 	// ErrInvalidFormat describes an error where decoding failed due to invalid version
 	ErrInvalidFormat = errors.New("invalid format: version and/or checksum bytes missing")
 
-	NetIDs map[string]NetID
+	NetIDs = map[string]NetID{
+		chaincfg.MainNetParams.Name:       NetID{[]byte{0x1c, 0xb8}, []byte{0x1c, 0xbd}, []byte{0x16, 0x9a}},
+		chaincfg.TestNet3Params.Name:      NetID{[]byte{0x1d, 0x25}, []byte{0x1c, 0xba}, []byte{0x16, 0xb6}},
+		chaincfg.RegressionNetParams.Name: NetID{[]byte{0x1d, 0x25}, []byte{0x1c, 0xba}, []byte{0x16, 0xb6}},
+	}
 )
 
 type NetID struct {
 	AddressPubKeyHash []byte
 	AddressScriptHash []byte
 	ZAddress          []byte
-}
-
-func init() {
-	NetIDs = make(map[string]NetID)
-	NetIDs[chaincfg.MainNetParams.Name] = NetID{[]byte{0x1c, 0xb8}, []byte{0x1c, 0xbd}, []byte{0x16, 0x9a}}
-	NetIDs[chaincfg.TestNet3Params.Name] = NetID{[]byte{0x1d, 0x25}, []byte{0x1c, 0xba}, []byte{0x16, 0xb6}}
-	NetIDs[chaincfg.RegressionNetParams.Name] = NetID{[]byte{0x1d, 0x25}, []byte{0x1c, 0xba}, []byte{0x16, 0xb6}}
 }
 
 // checksum: first four bytes of sha256^2

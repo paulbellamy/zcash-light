@@ -105,7 +105,7 @@ func (ts *TxStore) PopulateAdrs() error {
 func (ts *TxStore) Ingest(tx *Transaction, raw []byte, height int32) (uint32, error) {
 	var hits uint32
 	var err error
-	if err := tx.Validate(); err != nil {
+	if err := tx.Validate(ts.params); err != nil {
 		return hits, err
 	}
 
