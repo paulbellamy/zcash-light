@@ -61,7 +61,7 @@ var (
 	// really shouldn't be using mainnet insight apis for test and regression
 	// networks.
 	insightURLs = map[string]string{
-		chaincfg.TestNet3Params.Name:      "https://zcash.blockexplorer.com/api/",
+		chaincfg.TestNet3Params.Name:      "https://explorer.testnet.z.cash/api/",
 		chaincfg.RegressionNetParams.Name: "https://zcash.blockexplorer.com/api/",
 		chaincfg.MainNetParams.Name:       "https://zcash.blockexplorer.com/api/",
 	}
