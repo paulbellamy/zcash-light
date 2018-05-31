@@ -61,9 +61,8 @@ var (
 	// really shouldn't be using mainnet insight apis for test and regression
 	// networks.
 	insightURLs = map[string]string{
-		chaincfg.TestNet3Params.Name:      "https://explorer.testnet.z.cash/api/",
-		chaincfg.RegressionNetParams.Name: "https://zcash.blockexplorer.com/api/",
-		chaincfg.MainNetParams.Name:       "https://zcash.blockexplorer.com/api/",
+		chaincfg.TestNet3Params.Name: "https://explorer.testnet.z.cash/api/",
+		chaincfg.MainNetParams.Name:  "https://zcash.blockexplorer.com/api/",
 	}
 )
 
@@ -129,7 +128,7 @@ func (w *Wallet) TestNetworkEnabled() bool {
 
 // RegressionNetworkEnabled indicates if the current network being used is Regression Network
 func (w *Wallet) RegressionNetworkEnabled() bool {
-	return w.Params().Name == chaincfg.RegressionNetParams.Name
+	return false
 }
 
 // MainNetworkEnabled indicates if the current network being used is the live Network
