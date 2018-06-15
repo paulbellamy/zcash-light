@@ -262,7 +262,7 @@ func (ts *TxStore) Ingest(tx *Transaction, raw []byte, height int32) (uint32, er
 		// Let's check the height before committing so we don't allow rogue peers to send us a lose
 		// tx that resets our height to zero.
 		if txn.Height <= 0 {
-			ts.Txns().UpdateHeight(tx.TxHash(), int(height))
+			ts.Txns().UpdateHeight(tx.TxHash(), int(height), txn.Timestamp)
 			ts.txids[tx.TxHash().String()] = height
 			if height > 0 {
 				cb.Value = txn.Value
@@ -292,7 +292,7 @@ func (ts *TxStore) markAsDead(txid chainhash.Hash) error {
 		if err != nil {
 			return err
 		}
-		err = ts.Txns().UpdateHeight(s.SpendTxid, -1)
+		err = ts.Txns().UpdateHeight(s.SpendTxid, -1, time.Time{})
 		if err != nil {
 			return err
 		}
@@ -331,7 +331,7 @@ func (ts *TxStore) markAsDead(txid chainhash.Hash) error {
 			}
 		}
 	}
-	ts.Txns().UpdateHeight(txid, -1)
+	ts.Txns().UpdateHeight(txid, -1, time.Time{})
 	return nil
 }
 
