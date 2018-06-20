@@ -62,7 +62,7 @@ var (
 	// networks.
 	insightURLs = map[string]string{
 		chaincfg.TestNet3Params.Name: "https://explorer.testnet.z.cash/api/",
-		chaincfg.MainNetParams.Name:  "https://zcash.blockexplorer.com/api/",
+		chaincfg.MainNetParams.Name:  "https://zcashnetwork.info/api/",
 	}
 )
 
