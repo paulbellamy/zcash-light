@@ -59,12 +59,23 @@ func TestWalletMnemonicDeterminesMasterKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	config3 := testConfig(t)
+	config3.Mnemonic = config2.Mnemonic
+	w3, err := NewWallet(config3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if w1.MasterPrivateKey().String() == w2.MasterPrivateKey().String() {
 		t.Errorf("Mnemonic did not change master private key")
 	}
 
 	if w1.MasterPublicKey().String() == w2.MasterPublicKey().String() {
 		t.Errorf("Mnemonic did not change master public key")
+	}
+
+	if w2.MasterPublicKey().String() != w3.MasterPublicKey().String() {
+		t.Errorf("Mnemonic did not generate same master public key")
 	}
 }
 
