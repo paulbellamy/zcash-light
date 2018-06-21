@@ -70,7 +70,7 @@ func TestWalletMnemonicDeterminesMasterKey(t *testing.T) {
 
 func TestWalletParams(t *testing.T) {
 	config := testConfig(t)
-	config.Params = &chaincfg.Params{Name: chaincfg.RegressionNetParams.Name}
+	config.Params = &chaincfg.Params{Name: chaincfg.TestNet3Params.Name}
 	w, err := NewWallet(config)
 	if err != nil {
 		t.Fatal(err)
