@@ -330,10 +330,11 @@ func (f *FakeTxns) GetAll(includeWatchOnly bool) (a []wallet.Txn, err error) {
 }
 
 // Update the height of a transaction
-func (f *FakeTxns) UpdateHeight(txid chainhash.Hash, height int) error {
+func (f *FakeTxns) UpdateHeight(txid chainhash.Hash, height int, timestamp time.Time) error {
 	f.Do(f.init)
 	if t, ok := f.txns[txid.String()]; ok {
 		t.Height = int32(height)
+		t.Timestamp = timestamp
 		f.txns[txid.String()] = t
 		return nil
 	}

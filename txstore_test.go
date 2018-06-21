@@ -2,6 +2,7 @@ package zcash
 
 import (
 	"testing"
+	"time"
 
 	"github.com/OpenBazaar/multiwallet/keys"
 	wallet "github.com/OpenBazaar/wallet-interface"
@@ -32,7 +33,7 @@ func TestTxStoreIngestAddsTxnsToDB(t *testing.T) {
 		},
 	}
 	config.DB.Stxos().Put(wallet.Stxo{SpendTxid: txn.TxHash()})
-	if _, err := txStore.Ingest(txn, nil, 1); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 1, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -65,7 +66,7 @@ func TestTxStoreIngestIgnoresDuplicates(t *testing.T) {
 	}
 	config.DB.Stxos().Put(wallet.Stxo{SpendTxid: txn.TxHash()})
 	for i := 0; i < 2; i++ {
-		if _, err := txStore.Ingest(txn, nil, 1); err != nil {
+		if _, err := txStore.Ingest(txn, nil, 1, time.Now()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -115,7 +116,7 @@ func TestTxStoreIngestIgnoresUnconfirmedDoubleSpends(t *testing.T) {
 		},
 	}
 	config.DB.Stxos().Put(wallet.Stxo{SpendTxid: existingTxn.TxHash()})
-	if _, err := txStore.Ingest(existingTxn, nil, 1); err != nil {
+	if _, err := txStore.Ingest(existingTxn, nil, 1, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -138,7 +139,7 @@ func TestTxStoreIngestIgnoresUnconfirmedDoubleSpends(t *testing.T) {
 		},
 	}
 	config.DB.Stxos().Put(wallet.Stxo{SpendTxid: txn.TxHash()})
-	if _, err := txStore.Ingest(txn, nil, 11); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 11, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,7 +194,7 @@ func TestTxStoreIngestMarksExistingDoubleSpendsAsDead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txStore.Ingest(existingTxn, raw, 1); err != nil {
+	if _, err := txStore.Ingest(existingTxn, raw, 1, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +221,7 @@ func TestTxStoreIngestMarksExistingDoubleSpendsAsDead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := txStore.Ingest(txn, raw, 9); err != nil {
+	if _, err := txStore.Ingest(txn, raw, 9, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -248,7 +249,7 @@ func TestTxStoreIngestRejectsInvalidTxns(t *testing.T) {
 
 	expectedErr := ErrTxVersionTooLow.Error()
 	txn := &Transaction{Version: 0, Inputs: []Input{{}}, Outputs: []Output{{}}}
-	if _, err := txStore.Ingest(txn, nil, 1); err == nil {
+	if _, err := txStore.Ingest(txn, nil, 1, time.Now()); err == nil {
 		t.Errorf("Did not reject invalid txn")
 	} else if err.Error() != expectedErr {
 		t.Errorf("Expected %q error, got: %q", expectedErr, err.Error())
@@ -298,7 +299,7 @@ func TestTxStoreIngestUpdatesUtxos(t *testing.T) {
 			{Value: 123400000, ScriptPubKey: script},
 		},
 	}
-	if _, err := txStore.Ingest(txn, nil, 1); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 1, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -342,7 +343,7 @@ func TestTxStoreIngestOnlyStoresRelevantTxns(t *testing.T) {
 			{Value: 123400000, ScriptPubKey: script},
 		},
 	}
-	if _, err := txStore.Ingest(txn, nil, 1); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 1, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -419,7 +420,7 @@ func TestTxStoreIngestAddsStxos(t *testing.T) {
 			{Value: 123450000 - 110000000, ScriptPubKey: outScript},
 		},
 	}
-	if _, err := txStore.Ingest(txn, nil, 5); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 5, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -530,7 +531,7 @@ func TestTxStoreIngestUpdatesStxosHeight(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := txStore.Ingest(txn, nil, 5); err != nil {
+	if _, err := txStore.Ingest(txn, nil, 5, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 

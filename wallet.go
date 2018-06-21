@@ -154,7 +154,7 @@ func (w *Wallet) onTxn(txn client.Transaction) error {
 	if err := tx.UnmarshalBinary(raw); err != nil {
 		return err
 	}
-	_, err = w.txStore.Ingest(&tx, raw, int32(txn.BlockHeight))
+	_, err = w.txStore.Ingest(&tx, raw, int32(txn.BlockHeight), time.Unix(txn.BlockTime, 0))
 	return err
 }
 
@@ -373,7 +373,7 @@ func (w *Wallet) broadcastTx(tx *Transaction) (*chainhash.Hash, error) {
 	}
 
 	// Our own tx; don't keep track of false positives
-	if _, err := w.txStore.Ingest(tx, b, 0); err != nil {
+	if _, err := w.txStore.Ingest(tx, b, 0, time.Now()); err != nil {
 		return nil, err
 	}
 
