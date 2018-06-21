@@ -9,7 +9,6 @@ import (
 
 	"github.com/OpenBazaar/multiwallet/client"
 	"github.com/OpenBazaar/multiwallet/keys"
-	"github.com/OpenBazaar/spvwallet"
 	"github.com/OpenBazaar/wallet-interface"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -490,7 +489,7 @@ func (w *Wallet) gatherCoins() (map[coinset.Coin]*hd.ExtendedKey, error) {
 			continue
 		}
 
-		c := spvwallet.NewCoin(u.Op.Hash.CloneBytes(), u.Op.Index, btc.Amount(u.Value), int64(tipHeight)-int64(u.AtHeight), u.ScriptPubkey)
+		c := NewCoin(u.Op.Hash.CloneBytes(), u.Op.Index, btc.Amount(u.Value), int64(tipHeight)-int64(u.AtHeight), u.ScriptPubkey)
 
 		addr, err := w.ScriptToAddress(u.ScriptPubkey)
 		if err != nil {
@@ -505,6 +504,10 @@ func (w *Wallet) gatherCoins() (map[coinset.Coin]*hd.ExtendedKey, error) {
 	return m, nil
 }
 
+var BumpFeeAlreadyConfirmedError = errors.New("Transaction is confirmed, cannot bump fee")
+var BumpFeeTransactionDeadError = errors.New("Cannot bump fee of dead transaction")
+var BumpFeeNotFoundError = errors.New("Transaction either doesn't exist or has already been spent")
+
 func (w *Wallet) BumpFee(txid chainhash.Hash) (*chainhash.Hash, error) {
 	<-w.initChan
 	tipHeight, _ := w.ChainTip()
@@ -516,7 +519,7 @@ func (w *Wallet) BumpFee(txid chainhash.Hash) (*chainhash.Hash, error) {
 		return nil, fmt.Errorf("not found")
 	}
 	if tx.Height <= 0 || tx.Height > int32(tipHeight) {
-		return nil, spvwallet.BumpFeeAlreadyConfirmedError
+		return nil, BumpFeeAlreadyConfirmedError
 	}
 	unspent, err := w.DB.Utxos().GetAll()
 	if err != nil {
@@ -525,7 +528,7 @@ func (w *Wallet) BumpFee(txid chainhash.Hash) (*chainhash.Hash, error) {
 	for _, u := range unspent {
 		if u.Op.Hash.String() == txid.String() {
 			if u.AtHeight > 0 && u.AtHeight < int32(tipHeight) {
-				return nil, spvwallet.BumpFeeAlreadyConfirmedError
+				return nil, BumpFeeAlreadyConfirmedError
 			}
 			addr, err := w.ScriptToAddress(u.ScriptPubkey)
 			if err != nil {
@@ -543,7 +546,7 @@ func (w *Wallet) BumpFee(txid chainhash.Hash) (*chainhash.Hash, error) {
 
 		}
 	}
-	return nil, spvwallet.BumpFeeNotFoundError
+	return nil, BumpFeeNotFoundError
 }
 
 // Get the current fee per byte
@@ -574,12 +577,11 @@ func (w *Wallet) GetFeePerByte(feeLevel wallet.FeeLevel) uint64 {
 
 // Calculates the estimated size of the transaction and returns the total fee for the given feePerByte
 func (w *Wallet) EstimateFee(ins []wallet.TransactionInput, outs []wallet.TransactionOutput, feePerByte uint64) uint64 {
-	tx := wire.NewMsgTx(wire.TxVersion)
+	var outputs []Output
 	for _, out := range outs {
-		output := wire.NewTxOut(out.Value, out.ScriptPubKey)
-		tx.TxOut = append(tx.TxOut, output)
+		outputs = append(outputs, Output{Value: out.Value, ScriptPubKey: out.ScriptPubKey})
 	}
-	estimatedSize := spvwallet.EstimateSerializeSize(len(ins), tx.TxOut, false, spvwallet.P2PKH)
+	estimatedSize := EstimateSerializeSize(len(ins), outputs, false, P2PKH)
 	fee := estimatedSize * int(feePerByte)
 	return uint64(fee)
 }
@@ -646,9 +648,9 @@ func (w *Wallet) SweepAddress(utxos []wallet.Utxo, address *btc.Address, key *hd
 	}
 	out := Output{Value: val, ScriptPubKey: script}
 
-	txType := spvwallet.P2PKH
+	txType := P2PKH
 	if redeemScript != nil {
-		txType = spvwallet.P2SH_1of2_Multisig
+		txType = P2SH_1of2_Multisig
 	}
 
 	estimatedSize := EstimateSerializeSize(len(utxos), []Output{out}, false, txType)
@@ -734,7 +736,7 @@ func (w *Wallet) CreateMultisigSignature(ins []wallet.TransactionInput, outs []w
 	}
 
 	// Subtract fee
-	estimatedSize := EstimateSerializeSize(len(ins), tx.Outputs, false, spvwallet.P2SH_2of3_Multisig)
+	estimatedSize := EstimateSerializeSize(len(ins), tx.Outputs, false, P2SH_2of3_Multisig)
 	fee := estimatedSize * int(feePerByte)
 	feePerOutput := fee / len(tx.Outputs)
 	for _, output := range tx.Outputs {
@@ -791,7 +793,7 @@ func (w *Wallet) Multisign(ins []wallet.TransactionInput, outs []wallet.Transact
 	}
 
 	// Subtract fee
-	estimatedSize := EstimateSerializeSize(len(ins), tx.Outputs, false, spvwallet.P2SH_2of3_Multisig)
+	estimatedSize := EstimateSerializeSize(len(ins), tx.Outputs, false, P2SH_2of3_Multisig)
 	fee := estimatedSize * int(feePerByte)
 	feePerOutput := fee / len(tx.Outputs)
 	for _, output := range tx.Outputs {
