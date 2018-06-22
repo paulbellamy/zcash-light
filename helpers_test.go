@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/OpenBazaar/multiwallet/client"
@@ -14,6 +15,22 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 )
+
+func eventually(t *testing.T, f func() error) {
+	const sleep = 500 * time.Millisecond
+	const tries = 3
+	var err error
+	for i := 0; i < tries; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+		}
+		err = f()
+		if err == nil {
+			return
+		}
+	}
+	t.Errorf("Timeout after %v: %v", sleep*tries, err)
+}
 
 type FakeDatastore struct {
 	utxos          wallet.Utxos

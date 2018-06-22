@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -50,6 +51,15 @@ type Config struct {
 	Proxy    proxy.Dialer
 }
 
+// MasterKeys generates the master private and public keys for this mnemonic
+// and network params
+func (c Config) MasterKeys() (priv, pub *hd.ExtendedKey) {
+	seed := b39.NewSeed(c.Mnemonic, "")
+	priv, _ = hd.NewMaster(seed, c.Params)
+	pub, _ = priv.Neuter()
+	return priv, pub
+}
+
 // Stubbable for testing
 var (
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
@@ -80,9 +90,7 @@ type InsightClient interface {
 }
 
 func NewWallet(config Config) (*Wallet, error) {
-	seed := b39.NewSeed(config.Mnemonic, "")
-	mPrivKey, _ := hd.NewMaster(seed, config.Params)
-	mPubKey, _ := mPrivKey.Neuter()
+	mPrivKey, mPubKey := config.MasterKeys()
 	keyManager, err := keys.NewKeyManager(config.DB.Keys(), config.Params, mPrivKey, wallet.Zcash, KeyToAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing key manager: %v", err)
@@ -137,8 +145,8 @@ func (w *Wallet) MainNetworkEnabled() bool {
 
 func (w *Wallet) Start() {
 	go func() {
-		w.subscribeToAllAddresses()
 		w.loadInitialTransactions()
+		w.subscribeToAllAddresses()
 		go w.watchTransactions()
 		close(w.initChan)
 	}()
@@ -157,6 +165,95 @@ func (w *Wallet) onTxn(txn client.Transaction) error {
 	return err
 }
 
+type byBlockTime []client.Transaction
+
+func (a byBlockTime) Len() int           { return len(a) }
+func (a byBlockTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byBlockTime) Less(i, j int) bool { return a[i].BlockTime < a[j].BlockTime }
+
+// loadInitialTransactions crawls through the keypaths loading transactions
+// until it stops finding transactions within the lookahead window.
+func (w *Wallet) loadInitialTransactions() {
+	// load transactions for watched scripts. Easy.
+	scripts, _ := w.DB.WatchedScripts().GetAll()
+	var scriptAddrs []btc.Address
+	for _, script := range scripts {
+		if addr, err := w.ScriptToAddress(script); err == nil {
+			scriptAddrs = append(scriptAddrs, addr)
+		}
+	}
+	if _, err := w.loadTransactionsForAddrs(scriptAddrs); err != nil {
+		log.Errorf("error loading watched script transactions: %v", err)
+		return
+	}
+
+	// crawl through the lookahead window looking for new transactions
+	known := map[string]bool{}
+	loadNewKeys := func() ([]btc.Address, error) {
+		var newAddrs []btc.Address
+		for _, k := range w.keyManager.GetKeys() {
+			addr, err := KeyToAddress(k, w.Params())
+			if err != nil {
+				return nil, err
+			}
+			// If it has not already been queried
+			strAddr := addr.String()
+			if _, queried := known[strAddr]; !queried {
+				newAddrs = append(newAddrs, addr)
+			}
+			known[strAddr] = true
+		}
+		return newAddrs, nil
+	}
+	for {
+		addrs, err := loadNewKeys()
+		if err != nil {
+			log.Errorf("error loading keys: %v", err)
+			return
+		}
+		// we didn't find new keys, we're done
+		if len(addrs) <= 0 {
+			break
+		}
+
+		// loading txns will push the lookahead window
+		// Note: Here we assume that keys are only used in the order returned by
+		// `loadNewKeys`. This is because of the bug where txns must be loaded in
+		// order.
+		n, err := w.loadTransactionsForAddrs(addrs)
+		if err != nil {
+			log.Errorf("error loading transactions: %v", err)
+			return
+		}
+		// No new transactions. We must be at the end of used keys.
+		if n <= 0 {
+			break
+		}
+	}
+
+}
+
+func (w *Wallet) loadTransactionsForAddrs(addrs []btc.Address) (int, error) {
+	if len(addrs) <= 0 {
+		return 0, nil
+	}
+	// load transactions for new addrs
+	txns, err := w.insight.GetTransactions(addrs)
+	if err != nil {
+		return 0, err
+	}
+
+	// sort and load transactions
+	// TODO: Bug. If txns are loaded out of order stxos are never calculated.
+	sort.Sort(byBlockTime(txns))
+	for _, txn := range txns {
+		if err := w.onTxn(txn); err != nil {
+			return 0, err
+		}
+	}
+	return len(txns), nil
+}
+
 func (w *Wallet) subscribeToAllAddresses() {
 	keys := w.keyManager.GetKeys()
 	for _, k := range keys {
@@ -168,20 +265,6 @@ func (w *Wallet) subscribeToAllAddresses() {
 	for _, script := range scripts {
 		if addr, err := w.ScriptToAddress(script); err == nil {
 			w.addWatchedAddr(addr)
-		}
-	}
-}
-
-func (w *Wallet) loadInitialTransactions() {
-	txns, err := w.insight.GetTransactions(w.allWatchedAddrs())
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	for _, txn := range txns {
-		if err := w.onTxn(txn); err != nil {
-			log.Error(err)
-			return
 		}
 	}
 }

@@ -417,35 +417,190 @@ func TestWalletBalance(t *testing.T) {
 // TODO: Test race condition of transactions coming in after initial load
 func TestWalletTransactionsInitialLoad(t *testing.T) {
 	txnChan := make(chan client.Transaction)
+	var (
+		firstAddr btc.Address
+		txn       Transaction
+	)
+	now := time.Now().Truncate(time.Second)
+
 	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
 		return &FakeInsightClient{
 			getBestBlock: func() (*client.Block, error) { return nil, nil },
 			getTransactions: func(addrs []btc.Address) ([]client.Transaction, error) {
-				// TODO: Put some txns here
-				return []client.Transaction{{Txid: "a"}}, nil
+				for _, addr := range addrs {
+					if addr.String() == firstAddr.String() {
+						return []client.Transaction{
+							{
+								Txid:        txn.TxHash().String(),
+								BlockHeight: 3445,
+								BlockTime:   now.Unix(),
+							},
+						}, nil
+					}
+				}
+				return nil, nil
 			},
-			getRawTransaction: func(txid string) ([]byte, error) { return nil, nil },
+			getRawTransaction: func(txid string) ([]byte, error) {
+				if txid == txn.TxHash().String() {
+					return txn.MarshalBinary()
+				}
+				return nil, fmt.Errorf("txn not found: %v", txid)
+			},
 			transactionNotify: func() <-chan client.Transaction { return txnChan },
 		}, nil
 	}
 	config := testConfig(t)
-	expectedTxns := []wallet.Txn{{Txid: "a"}}
-	config.DB.Txns().Put(nil, expectedTxns[0].Txid, 0, 0, time.Time{}, false)
 	w, err := NewWallet(config)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	firstAddr = w.CurrentAddress(wallet.EXTERNAL)
+	hash, _ := chainhash.NewHashFromStr("a")
+	script, _ := PayToAddrScript(firstAddr)
+	txn = Transaction{
+		Version: 1,
+		Inputs: []Input{
+			{PreviousOutPoint: wire.OutPoint{Hash: *hash, Index: 0}, SignatureScript: []byte{}},
+		},
+		Outputs: []Output{
+			{Value: 1234, ScriptPubKey: script},
+		},
+	}
+
 	w.Start()
 	defer w.Close()
 
-	txns, err := w.Transactions()
+	txnBytes, _ := txn.MarshalBinary()
+	expectedTxns := []wallet.Txn{{
+		Txid:      txn.TxHash().String(),
+		Value:     1234,
+		Height:    3445,
+		Timestamp: now,
+		Bytes:     txnBytes,
+	}}
+	eventually(t, func() error {
+		txns, err := w.Transactions()
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(txns, expectedTxns) {
+			return fmt.Errorf("\nExpected: %v\n     Got: %v", expectedTxns, txns)
+		}
+		return nil
+	})
+}
+
+// TestWalletTransactionsInitialLoad_IncludesHigherKeys checks that the initial
+// transaction loading includes keys beyond the initially-provisioned 20, in
+// case we are restoring a previously-used wallet.
+func TestWalletTransactionsInitialLoad_IncludesHigherKeys(t *testing.T) {
+	txnChan := make(chan client.Transaction)
+	var (
+		firstAddr, higherAddr btc.Address
+		txns                  = map[string][]Transaction{}
+	)
+	now := time.Now().Truncate(time.Second)
+
+	newInsightClient = func(url string, proxyDialer proxy.Dialer) (InsightClient, error) {
+		return &FakeInsightClient{
+			getBestBlock: func() (*client.Block, error) { return nil, nil },
+			getTransactions: func(addrs []btc.Address) ([]client.Transaction, error) {
+				var found []client.Transaction
+				for _, addr := range addrs {
+					for _, t := range txns[addr.String()] {
+						found = append(found, client.Transaction{
+							Txid:        t.TxHash().String(),
+							BlockHeight: 3445,
+							BlockTime:   now.Unix(),
+						})
+					}
+				}
+				return found, nil
+			},
+			getRawTransaction: func(txid string) ([]byte, error) {
+				for _, ts := range txns {
+					for _, t := range ts {
+						if txid == t.TxHash().String() {
+							return t.MarshalBinary()
+						}
+					}
+				}
+				return nil, fmt.Errorf("txn not found: %v", txid)
+			},
+			transactionNotify: func() <-chan client.Transaction { return txnChan },
+		}, nil
+	}
+	config := testConfig(t)
+	w, err := NewWallet(config)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(txns, expectedTxns) {
-		t.Errorf("\nExpected: %v\n     Got: %v", expectedTxns, txns)
+	// Add a txn for the an address we know about (to prompt the wallet to keep looking)
+	firstAddr = w.CurrentAddress(wallet.EXTERNAL)
+
+	// Derive an address outside the initial lookahead window, We could use the
+	// keymanager for this, but we have to derive it here so it won't be stored
+	// in the DB
+	mPrivKey, _ := config.MasterKeys()
+	_, external, _ := keys.Bip44Derivation(mPrivKey, wallet.Zcash)
+	externalChild, _ := external.Child(keys.LOOKAHEADWINDOW)
+	higherAddr, _ = KeyToAddress(externalChild, w.Params())
+
+	firstAddrHash, _ := chainhash.NewHashFromStr("a")
+	firstAddrScript, _ := PayToAddrScript(firstAddr)
+	higherAddrHash, _ := chainhash.NewHashFromStr("b")
+	higherAddrScript, _ := PayToAddrScript(higherAddr)
+	txns[firstAddr.String()] = []Transaction{
+		{
+			Version: 1,
+			Inputs: []Input{
+				{PreviousOutPoint: wire.OutPoint{Hash: *firstAddrHash, Index: 0}, SignatureScript: []byte{}},
+			},
+			Outputs: []Output{
+				{Value: 1234, ScriptPubKey: firstAddrScript},
+			},
+		},
 	}
+	txns[higherAddr.String()] = []Transaction{
+		{
+			Version: 1,
+			Inputs: []Input{
+				{PreviousOutPoint: wire.OutPoint{Hash: *higherAddrHash, Index: 0}, SignatureScript: []byte{}},
+			},
+			Outputs: []Output{
+				{Value: 1234, ScriptPubKey: higherAddrScript},
+			},
+		},
+	}
+
+	w.Start()
+	defer w.Close()
+
+	var expectedTxns []wallet.Txn
+	for _, ts := range txns {
+		for _, t := range ts {
+			txnBytes, _ := t.MarshalBinary()
+			expectedTxns = append(expectedTxns, wallet.Txn{
+				Txid:      t.TxHash().String(),
+				Value:     1234,
+				Height:    3445,
+				Timestamp: now,
+				Bytes:     txnBytes,
+			})
+		}
+	}
+	eventually(t, func() error {
+		txns, err := w.Transactions()
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(txns, expectedTxns) {
+			return fmt.Errorf("\nExpected: %v\n     Got: %v", expectedTxns, txns)
+		}
+		return nil
+	})
 }
 
 // TODO: Test initial load of transactions
